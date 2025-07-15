@@ -17,34 +17,49 @@
       </DataTable>
    
       <!-- Dialog para crear/editar -->
-      <q-dialog v-model="showDialog" persistent @hide="closeDialog">
+      <q-dialog v-model="dialog" persistent @hide="closeDialog">
         <q-card style="min-width: 350px">
           <q-card-section>
-            <div class="text-h6">{{ editedClient.id ? 'Editar' : 'Nuevo' }} Cliente</div>
+            <div class="text-h6">{{ editingItem.id ? 'Editar' : 'Nuevo' }} Cliente</div>
           </q-card-section>
    
           <q-card-section>
             <q-form @submit="saveClient">
-              <q-input v-model="editedClient.business_name" label="Razón Social" :rules="[val => !!val || 'Campo requerido']" />
-              <q-input v-model="editedClient.rfc" label="RFC" :rules="[val => !!val || 'Campo requerido']" />
-              <q-input v-model="editedClient.address" label="Dirección" :rules="[val => !!val || 'Campo requerido']" />
-              <q-input v-model="editedClient.phone" label="Teléfono" :rules="[val => !!val || 'Campo requerido']" />
-              <q-input v-model="editedClient.email" label="Email" type="email" :rules="[val => !!val || 'Campo requerido']" />
+              <UppercaseInput 
+                v-model="editingItem.business_name" 
+                label="Razón Social" 
+                :rules="[val => !!val || 'Campo requerido']" 
+              />
+              <UppercaseInput 
+                v-model="editingItem.rfc" 
+                label="RFC" 
+                :rules="[val => !!val || 'Campo requerido']" 
+              />
+              <UppercaseInput 
+                v-model="editingItem.address" 
+                label="Dirección" 
+                :rules="[val => !!val || 'Campo requerido']" 
+              />
+              <q-input 
+                v-model="editingItem.phone" 
+                label="Teléfono" 
+                :rules="[val => !!val || 'Campo requerido']" 
+              />
+              <q-input 
+                v-model="editingItem.email" 
+                label="Email" 
+                type="email" 
+                :rules="[val => !!val || 'Campo requerido']" 
+              />
               
               <div class="row justify-end q-mt-md">
-                <q-btn label="Cancelar" color="negative" v-close-popup />
-                <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" />
+                <q-btn label="Cancelar" color="negative" v-close-popup :disable="loading" />
+                <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" :loading="loading" />
               </div>
             </q-form>
           </q-card-section>
         </q-card>
       </q-dialog>
-
-      <!-- Loader para acciones -->
-      <ActionLoader 
-        :loading="actionLoading" 
-        :message="actionMessage" 
-      />
     </q-page>
    </template>
    
@@ -52,15 +67,13 @@
    import { ref } from 'vue'
    import { api } from 'src/boot/axios'
    import DataTable from 'src/components/DataTable.vue'
-   import ActionLoader from 'src/components/ActionLoader.vue'
    import { useNotifications } from 'src/composables/useNotifications'
-   import { useModal } from 'src/composables/useModal'
+   import { useCrudOperations } from 'src/composables/useCrudOperations'
    
    export default {
     name: 'ClientsPage',
     components: {
-      DataTable,
-      ActionLoader
+      DataTable
     },
     setup () {
       const clients = ref([])
@@ -76,15 +89,15 @@
 
       const { showSuccess, showError } = useNotifications()
       const { 
-        showDialog, 
-        editedItem: editedClient, 
-        actionLoading, 
-        actionMessage,
+        loading: crudLoading,
+        dialog,
+        editingItem,
         openNewDialog,
         openEditDialog,
-        executeAction,
-        closeDialog
-      } = useModal(defaultClientData)
+        closeDialog,
+        saveItem,
+        deleteItem
+      } = useCrudOperations()
    
       const columns = [
         { name: 'business_name', label: 'Razón Social', field: 'business_name', sortable: true },
@@ -95,14 +108,17 @@
       ]
 
       const openNewClientDialog = () => {
-        openNewDialog()
+        openNewDialog(defaultClientData)
+      }
+
+      const editClient = (client) => {
+        openEditDialog(client)
       }
    
       const loadClients = async () => {
         loading.value = true
         try {
           const response = await api.get('/clients')
-          // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
           clients.value = response.data.data || response.data
         } catch (error) {
           console.error(error)
@@ -113,37 +129,25 @@
       }
    
       const saveClient = async () => {
-        const result = await executeAction(async () => {
-          if (editedClient.value.id) {
-            return await api.put(`/clients/${editedClient.value.id}`, editedClient.value)
+        const saveAction = async () => {
+          if (editingItem.value.id) {
+            return await api.put(`/clients/${editingItem.value.id}`, editingItem.value)
           } else {
-            return await api.post('/clients', editedClient.value)
+            return await api.post('/clients', editingItem.value)
           }
-        })
-        
-        if (result.success) {
-          showSuccess(result.message)
-          loadClients()
-        } else {
-          showError(result.message)
         }
-      }
-   
-      const editClient = (client) => {
-        openEditDialog(client)
+
+        const successMessage = editingItem.value.id ? 'Cliente actualizado correctamente' : 'Cliente agregado correctamente'
+        
+        await saveItem(saveAction, successMessage, loadClients)
       }
    
       const confirmDelete = async (client) => {
-        const result = await executeAction(async () => {
+        const deleteAction = async () => {
           return await api.delete(`/clients/${client.id}`)
-        })
-        
-        if (result.success) {
-          showSuccess(result.message)
-          loadClients()
-        } else {
-          showError(result.message)
         }
+
+        await deleteItem(deleteAction, client.business_name, loadClients)
       }
    
       loadClients()
@@ -151,15 +155,14 @@
       return {
         clients,
         columns,
-        loading,
-        actionLoading,
-        actionMessage,
-        showDialog,
-        editedClient,
+        loading: crudLoading,
+        dialog,
+        editingItem,
         saveClient,
         editClient,
         confirmDelete,
-        openNewClientDialog
+        openNewClientDialog,
+        closeDialog
       }
     }
    }

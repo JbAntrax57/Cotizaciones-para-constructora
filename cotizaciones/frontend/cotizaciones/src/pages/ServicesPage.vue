@@ -16,32 +16,40 @@
         </template>
       </DataTable>
   
-      <q-dialog v-model="showDialog" persistent @hide="closeDialog">
+      <q-dialog v-model="dialog" persistent @hide="closeDialog">
         <q-card style="min-width: 350px">
           <q-card-section>
-            <div class="text-h6">{{ editedService.id ? 'Editar' : 'Nuevo' }} Servicio</div>
+            <div class="text-h6">{{ editingItem.id ? 'Editar' : 'Nuevo' }} Servicio</div>
           </q-card-section>
   
           <q-card-section>
             <q-form @submit="saveService">
-              <q-input v-model="editedService.name" label="Nombre" :rules="[val => !!val || 'Campo requerido']" />
-              <q-input v-model="editedService.description" type="textarea" label="Descripción" />
-              <q-input v-model.number="editedService.estimated_cost" type="number" label="Costo Estimado" prefix="$" />
+              <UppercaseInput 
+                v-model="editingItem.name" 
+                label="Nombre" 
+                :rules="[val => !!val || 'Campo requerido']" 
+              />
+              <q-input 
+                v-model="editingItem.description" 
+                type="textarea" 
+                label="Descripción" 
+              />
+              <q-input 
+                v-model.number="editingItem.estimated_cost" 
+                type="number" 
+                label="Costo Estimado" 
+                prefix="$" 
+                :rules="[val => val >= 0 || 'Debe ser mayor o igual a 0']"
+              />
               
               <div class="row justify-end q-mt-md">
-                <q-btn label="Cancelar" color="negative" v-close-popup />
-                <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" />
+                <q-btn label="Cancelar" color="negative" v-close-popup :disable="loading" />
+                <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" :loading="loading" />
               </div>
             </q-form>
           </q-card-section>
         </q-card>
       </q-dialog>
-
-      <!-- Loader para acciones -->
-      <ActionLoader 
-        :loading="actionLoading" 
-        :message="actionMessage" 
-      />
     </q-page>
   </template>
   
@@ -49,16 +57,14 @@
   import { ref } from 'vue'
   import { api } from 'boot/axios'
   import DataTable from 'src/components/DataTable.vue'
-  import ActionLoader from 'src/components/ActionLoader.vue'
   import { useNotifications } from 'src/composables/useNotifications'
-  import { useModal } from 'src/composables/useModal'
+  import { useCrudOperations } from 'src/composables/useCrudOperations'
   import { useNumberFormatter } from 'src/composables/useNumberFormatter'
   
   export default {
     name: 'ServicesPage',
     components: {
-      DataTable,
-      ActionLoader
+      DataTable
     },
     setup() {
       const services = ref([])
@@ -73,18 +79,18 @@
       const { showSuccess, showError } = useNotifications()
       const { formatCurrency } = useNumberFormatter()
       const { 
-        showDialog, 
-        editedItem: editedService, 
-        actionLoading, 
-        actionMessage,
+        loading: crudLoading,
+        dialog,
+        editingItem,
         openNewDialog,
         openEditDialog,
-        executeAction,
-        closeDialog
-      } = useModal(defaultServiceData)
+        closeDialog,
+        saveItem,
+        deleteItem
+      } = useCrudOperations()
 
       const openNewServiceDialog = () => {
-        openNewDialog()
+        openNewDialog(defaultServiceData)
       }
 
       const editService = (service) => {
@@ -102,7 +108,6 @@
         loading.value = true
         try {
           const response = await api.get('/services')
-          // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
           services.value = response.data.data || response.data
         } catch (error) {
           console.error(error)
@@ -113,33 +118,25 @@
       }
   
       const saveService = async () => {
-        const result = await executeAction(async () => {
-          if (editedService.value.id) {
-            return await api.put(`/services/${editedService.value.id}`, editedService.value)
+        const saveAction = async () => {
+          if (editingItem.value.id) {
+            return await api.put(`/services/${editingItem.value.id}`, editingItem.value)
           } else {
-            return await api.post('/services', editedService.value)
+            return await api.post('/services', editingItem.value)
           }
-        })
-        
-        if (result.success) {
-          showSuccess(result.message)
-          loadServices()
-        } else {
-          showError(result.message)
         }
+
+        const successMessage = editingItem.value.id ? 'Servicio actualizado correctamente' : 'Servicio agregado correctamente'
+        
+        await saveItem(saveAction, successMessage, loadServices)
       }
 
       const confirmDelete = async (service) => {
-        const result = await executeAction(async () => {
+        const deleteAction = async () => {
           return await api.delete(`/services/${service.id}`)
-        })
-        
-        if (result.success) {
-          showSuccess(result.message)
-          loadServices()
-        } else {
-          showError(result.message)
         }
+
+        await deleteItem(deleteAction, service.name, loadServices)
       }
   
       loadServices()
@@ -147,11 +144,9 @@
       return {
         services,
         columns,
-        loading,
-        actionLoading,
-        actionMessage,
-        showDialog,
-        editedService,
+        loading: crudLoading,
+        dialog,
+        editingItem,
         saveService,
         editService,
         confirmDelete,

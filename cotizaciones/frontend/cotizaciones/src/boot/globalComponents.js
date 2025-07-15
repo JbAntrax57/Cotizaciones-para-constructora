@@ -1,5 +1,8 @@
-import GlobalSelect from 'src/components/GlobalSelect.vue'
+// src/boot/globalComponents.js
+import { boot } from 'quasar/wrappers'
+import UppercaseInput from 'src/components/UppercaseInput.vue'
 
-export default ({ app }) => {
-  app.component('GlobalSelect', GlobalSelect)
-} 
+export default boot(({ app }) => {
+  // Registrar componentes globales
+  app.component('UppercaseInput', UppercaseInput)
+}) 

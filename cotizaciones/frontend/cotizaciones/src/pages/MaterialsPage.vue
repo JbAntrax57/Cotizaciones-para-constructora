@@ -16,34 +16,51 @@
         </template>
       </DataTable>
    
-      <q-dialog v-model="showDialog" persistent @hide="closeDialog">
+      <q-dialog v-model="dialog" persistent @hide="closeDialog">
         <q-card style="min-width: 350px">
           <q-card-section>
-            <div class="text-h6">{{ editedMaterial.id ? 'Editar' : 'Nuevo' }} Material</div>
+            <div class="text-h6">{{ editingItem.id ? 'Editar' : 'Nuevo' }} Material</div>
           </q-card-section>
    
           <q-card-section>
             <q-form @submit="saveMaterial">
-                          <q-input v-model="editedMaterial.name" label="Nombre" :rules="[val => !!val || 'Campo requerido']" />
-            <q-input v-model="editedMaterial.supplier" label="Proveedor" :rules="[val => !!val || 'Campo requerido']" />
-            <q-input v-model="editedMaterial.unit" label="Unidad de Medida" :rules="[val => !!val || 'Campo requerido']" />
-            <q-input v-model.number="editedMaterial.unit_cost" type="number" label="Costo Unitario" prefix="$" />
-            <q-input v-model="editedMaterial.description" label="Descripción" type="textarea" :rules="[val => !!val || 'Campo requerido']" />
+              <UppercaseInput 
+                v-model="editingItem.name" 
+                label="Nombre" 
+                :rules="[val => !!val || 'Campo requerido']"
+              />
+              <UppercaseInput 
+                v-model="editingItem.supplier" 
+                label="Proveedor" 
+                :rules="[val => !!val || 'Campo requerido']"
+              />
+              <UppercaseInput 
+                v-model="editingItem.unit" 
+                label="Unidad de Medida" 
+                :rules="[val => !!val || 'Campo requerido']"
+              />
+              <q-input 
+                v-model.number="editingItem.unit_cost" 
+                type="number" 
+                label="Costo Unitario" 
+                prefix="$" 
+                :rules="[val => val > 0 || 'Debe ser mayor a 0']"
+              />
+              <q-input 
+                v-model="editingItem.description" 
+                label="Descripción" 
+                type="textarea" 
+                :rules="[val => !!val || 'Campo requerido']"
+              />
               
               <div class="row justify-end q-mt-md">
-                <q-btn label="Cancelar" color="negative" v-close-popup />
-                <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" />
+                <q-btn label="Cancelar" color="negative" v-close-popup :disable="loading" />
+                <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" :loading="loading" />
               </div>
             </q-form>
           </q-card-section>
         </q-card>
       </q-dialog>
-
-      <!-- Loader para acciones -->
-      <ActionLoader 
-        :loading="actionLoading" 
-        :message="actionMessage" 
-      />
     </q-page>
    </template>
    
@@ -51,16 +68,16 @@
      import { ref } from 'vue'
   import { api } from 'boot/axios'
   import DataTable from 'src/components/DataTable.vue'
-  import ActionLoader from 'src/components/ActionLoader.vue'
   import { useNotifications } from 'src/composables/useNotifications'
-  import { useModal } from 'src/composables/useModal'
+  import { useCrudOperations } from 'src/composables/useCrudOperations'
   import { useNumberFormatter } from 'src/composables/useNumberFormatter'
+  import UppercaseInput from 'src/components/UppercaseInput.vue'
    
    export default {
     name: 'MaterialsPage',
     components: {
       DataTable,
-      ActionLoader
+      UppercaseInput
     },
     setup() {
       const materials = ref([])
@@ -77,18 +94,18 @@
       const { showSuccess, showError } = useNotifications()
       const { formatCurrency } = useNumberFormatter()
       const { 
-        showDialog, 
-        editedItem: editedMaterial, 
-        actionLoading, 
-        actionMessage,
+        loading: crudLoading,
+        dialog,
+        editingItem,
         openNewDialog,
         openEditDialog,
-        executeAction,
-        closeDialog
-      } = useModal(defaultMaterialData)
+        closeDialog,
+        saveItem,
+        deleteItem
+      } = useCrudOperations()
 
       const openNewMaterialDialog = () => {
-        openNewDialog()
+        openNewDialog(defaultMaterialData)
       }
 
       const editMaterial = (material) => {
@@ -108,7 +125,6 @@
         loading.value = true
         try {
           const response = await api.get('/materials')
-          // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
           materials.value = response.data.data || response.data
         } catch (error) {
           console.error(error)
@@ -119,33 +135,25 @@
       }
    
       const saveMaterial = async () => {
-        const result = await executeAction(async () => {
-          if (editedMaterial.value.id) {
-            return await api.put(`/materials/${editedMaterial.value.id}`, editedMaterial.value)
+        const saveAction = async () => {
+          if (editingItem.value.id) {
+            return await api.put(`/materials/${editingItem.value.id}`, editingItem.value)
           } else {
-            return await api.post('/materials', editedMaterial.value)
+            return await api.post('/materials', editingItem.value)
           }
-        })
-        
-        if (result.success) {
-          showSuccess(result.message)
-          loadMaterials()
-        } else {
-          showError(result.message)
         }
+
+        const successMessage = editingItem.value.id ? 'Material actualizado correctamente' : 'Material agregado correctamente'
+        
+        await saveItem(saveAction, successMessage, loadMaterials)
       }
 
       const confirmDelete = async (material) => {
-        const result = await executeAction(async () => {
+        const deleteAction = async () => {
           return await api.delete(`/materials/${material.id}`)
-        })
-        
-        if (result.success) {
-          showSuccess(result.message)
-          loadMaterials()
-        } else {
-          showError(result.message)
         }
+
+        await deleteItem(deleteAction, material.name, loadMaterials)
       }
    
       loadMaterials()
@@ -153,11 +161,9 @@
       return {
         materials,
         columns,
-        loading,
-        actionLoading,
-        actionMessage,
-        showDialog,
-        editedMaterial,
+        loading: crudLoading,
+        dialog,
+        editingItem,
         saveMaterial,
         editMaterial,
         confirmDelete,

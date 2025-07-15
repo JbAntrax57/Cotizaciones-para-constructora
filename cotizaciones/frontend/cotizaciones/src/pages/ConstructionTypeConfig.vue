@@ -56,6 +56,9 @@
                   :columns="materialColumns"
                   row-key="id"
                   :loading="loadingMaterials"
+                  :pagination="{ rowsPerPage: 10 }"
+                  no-data-label="No hay materiales configurados"
+                  no-results-label="No se encontraron materiales"
                 >
                   <template #body-cell-actions="props">
                     <q-td :props="props">
@@ -78,6 +81,9 @@
                   :columns="serviceColumns"
                   row-key="id"
                   :loading="loadingServices"
+                  :pagination="{ rowsPerPage: 10 }"
+                  no-data-label="No hay servicios configurados"
+                  no-results-label="No se encontraron servicios"
                 >
                   <template #body-cell-actions="props">
                     <q-td :props="props">
@@ -91,10 +97,21 @@
           </q-card-section>
         </q-card>
       </div>
+
+      <!-- Mensaje cuando no hay tipo seleccionado -->
+      <div class="col-12 col-md-8" v-else>
+        <q-card>
+          <q-card-section class="text-center">
+            <q-icon name="info" size="48px" color="grey-5" />
+            <div class="text-h6 q-mt-md text-grey-6">Selecciona un tipo de construcción</div>
+            <div class="text-caption text-grey-5">Elige un tipo de construcción de la lista para configurar sus materiales y servicios</div>
+          </q-card-section>
+        </q-card>
+      </div>
     </div>
 
     <!-- Diálogo para Material -->
-    <q-dialog v-model="materialDialog" persistent>
+    <q-dialog v-model="materialDialog" persistent @hide="closeMaterialDialog">
       <q-card style="min-width: 500px">
         <q-card-section>
           <div class="text-h6">{{ editingMaterial.id ? 'Editar' : 'Agregar' }} Material</div>
@@ -113,16 +130,24 @@
                 />
               </div>
               <div class="col-12">
-                <q-input v-model="editingMaterial.application_type" label="Tipo de Aplicación" />
+                <UppercaseInput 
+                  v-model="editingMaterial.application_type" 
+                  label="Tipo de Aplicación" 
+                  :rules="[val => !!val || 'Campo requerido']"
+                />
               </div>
               <div class="col-6">
-                <q-input v-model.number="editingMaterial.quantity_per_unit" type="number" label="Cantidad por Unidad" step="0.001" />
+                <q-input v-model.number="editingMaterial.quantity_per_unit" type="number" label="Cantidad por Unidad" step="0.001" :rules="[val => val > 0 || 'Debe ser mayor a 0']" />
               </div>
               <div class="col-6">
-                <q-input v-model="editingMaterial.unit_measure" label="Unidad de Medida" />
+                <UppercaseInput 
+                  v-model="editingMaterial.unit_measure" 
+                  label="Unidad de Medida" 
+                  :rules="[val => !!val || 'Campo requerido']"
+                />
               </div>
               <div class="col-12">
-                <q-input v-model="editingMaterial.calculation_formula" label="Fórmula de Cálculo" />
+                <q-input v-model="editingMaterial.calculation_formula" label="Fórmula de Cálculo" :rules="[val => !!val || 'Campo requerido']" />
                 <div class="text-caption q-mt-sm">
                   Variables disponibles: floor_area, wall_area, perimeter, height
                 </div>
@@ -133,8 +158,8 @@
             </div>
 
             <div class="row justify-end q-mt-md">
-              <q-btn label="Cancelar" color="negative" v-close-popup />
-              <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" />
+              <q-btn label="Cancelar" color="negative" v-close-popup :disable="materialLoading" />
+              <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" :loading="materialLoading" />
             </div>
           </q-form>
         </q-card-section>
@@ -142,7 +167,7 @@
     </q-dialog>
 
     <!-- Diálogo para Servicio -->
-    <q-dialog v-model="serviceDialog" persistent>
+    <q-dialog v-model="serviceDialog" persistent @hide="closeServiceDialog">
       <q-card style="min-width: 500px">
         <q-card-section>
           <div class="text-h6">{{ editingService.id ? 'Editar' : 'Agregar' }} Servicio</div>
@@ -161,16 +186,24 @@
                 />
               </div>
               <div class="col-12">
-                <q-input v-model="editingService.work_type" label="Tipo de Trabajo" />
+                <UppercaseInput 
+                  v-model="editingService.work_type" 
+                  label="Tipo de Trabajo" 
+                  :rules="[val => !!val || 'Campo requerido']"
+                />
               </div>
               <div class="col-6">
-                <q-input v-model.number="editingService.rate_per_unit" type="number" label="Tarifa por Unidad" step="0.01" />
+                <q-input v-model.number="editingService.rate_per_unit" type="number" label="Tarifa por Unidad" step="0.01" :rules="[val => val > 0 || 'Debe ser mayor a 0']" />
               </div>
               <div class="col-6">
-                <q-input v-model="editingService.unit_measure" label="Unidad de Medida" />
+                <UppercaseInput 
+                  v-model="editingService.unit_measure" 
+                  label="Unidad de Medida" 
+                  :rules="[val => !!val || 'Campo requerido']"
+                />
               </div>
               <div class="col-12">
-                <q-input v-model="editingService.calculation_formula" label="Fórmula de Cálculo" />
+                <q-input v-model="editingService.calculation_formula" label="Fórmula de Cálculo" :rules="[val => !!val || 'Campo requerido']" />
                 <div class="text-caption q-mt-sm">
                   Variables disponibles: floor_area, wall_area, perimeter
                 </div>
@@ -181,8 +214,8 @@
             </div>
 
             <div class="row justify-end q-mt-md">
-              <q-btn label="Cancelar" color="negative" v-close-popup />
-              <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" />
+              <q-btn label="Cancelar" color="negative" v-close-popup :disable="serviceLoading" />
+              <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" :loading="serviceLoading" />
             </div>
           </q-form>
         </q-card-section>
@@ -193,12 +226,15 @@
 
 <script>
 import { ref, onMounted, computed } from 'vue'
+import { useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import { useNotifications } from 'src/composables/useNotifications'
+import { useCrudOperations } from 'src/composables/useCrudOperations'
 
 export default {
   name: 'ConstructionTypeConfig',
   setup() {
+    const $q = useQuasar()
     const constructionTypes = ref([])
     const materials = ref([])
     const services = ref([])
@@ -209,12 +245,33 @@ export default {
     const loadingMaterials = ref(false)
     const loadingServices = ref(false)
 
-    const materialDialog = ref(false)
-    const serviceDialog = ref(false)
-    const editingMaterial = ref({})
-    const editingService = ref({})
-
     const { showSuccess, showError } = useNotifications()
+    
+    // Instancia para materiales
+    const materialCrud = useCrudOperations()
+    const { 
+      loading: materialLoading,
+      dialog: materialDialog,
+      editingItem: editingMaterial,
+      openNewDialog: openNewMaterialDialog,
+      openEditDialog: editMaterial,
+      closeDialog: closeMaterialDialog,
+      saveItem: saveMaterialItem,
+      deleteItem: deleteMaterialItem
+    } = materialCrud
+
+    // Instancia para servicios
+    const serviceCrud = useCrudOperations()
+    const { 
+      loading: serviceLoading,
+      dialog: serviceDialog,
+      editingItem: editingService,
+      openNewDialog: openNewServiceDialog,
+      openEditDialog: editService,
+      closeDialog: closeServiceDialog,
+      saveItem: saveServiceItem,
+      deleteItem: deleteServiceItem
+    } = serviceCrud
 
     const materialColumns = [
       { name: 'material_name', label: 'Material', field: 'material_name' },
@@ -313,7 +370,7 @@ export default {
     }
 
     const openMaterialDialog = () => {
-      editingMaterial.value = {
+      const defaultData = {
         construction_type_id: selectedType.value.id,
         material_id: null,
         application_type: '',
@@ -322,44 +379,11 @@ export default {
         calculation_formula: '',
         notes: ''
       }
-      materialDialog.value = true
-    }
-
-    const editMaterial = (material) => {
-      editingMaterial.value = { ...material }
-      materialDialog.value = true
-    }
-
-    const saveMaterial = async () => {
-      try {
-        if (editingMaterial.value.id) {
-          await api.put(`/construction-type-materials/${editingMaterial.value.id}`, editingMaterial.value)
-          showSuccess('Material actualizado correctamente')
-        } else {
-          await api.post('/construction-type-materials', editingMaterial.value)
-          showSuccess('Material agregado correctamente')
-        }
-        materialDialog.value = false
-        await loadTypeMaterials()
-      } catch (error) {
-        console.error(error)
-        showError('Error guardando material')
-      }
-    }
-
-    const deleteMaterial = async (material) => {
-      try {
-        await api.delete(`/construction-type-materials/${material.id}`)
-        showSuccess('Material eliminado correctamente')
-        await loadTypeMaterials()
-      } catch (error) {
-        console.error(error)
-        showError('Error eliminando material')
-      }
+      openNewMaterialDialog(defaultData)
     }
 
     const openServiceDialog = () => {
-      editingService.value = {
+      const defaultData = {
         construction_type_id: selectedType.value.id,
         service_id: null,
         work_type: '',
@@ -368,40 +392,51 @@ export default {
         calculation_formula: '',
         notes: ''
       }
-      serviceDialog.value = true
+      openNewServiceDialog(defaultData)
     }
 
-    const editService = (service) => {
-      editingService.value = { ...service }
-      serviceDialog.value = true
+    const saveMaterial = async () => {
+      const saveAction = async () => {
+        if (editingMaterial.value.id) {
+          return await api.put(`/construction-type-materials/${editingMaterial.value.id}`, editingMaterial.value)
+        } else {
+          return await api.post('/construction-type-materials', editingMaterial.value)
+        }
+      }
+
+      const successMessage = editingMaterial.value.id ? 'Material actualizado correctamente' : 'Material agregado correctamente'
+      
+      await saveMaterialItem(saveAction, successMessage, loadTypeMaterials)
+    }
+
+    const deleteMaterial = async (material) => {
+      const deleteAction = async () => {
+        return await api.delete(`/construction-type-materials/${material.id}`)
+      }
+
+      await deleteMaterialItem(deleteAction, material.material_name, loadTypeMaterials)
     }
 
     const saveService = async () => {
-      try {
+      const saveAction = async () => {
         if (editingService.value.id) {
-          await api.put(`/construction-type-services/${editingService.value.id}`, editingService.value)
-          showSuccess('Servicio actualizado correctamente')
+          return await api.put(`/construction-type-services/${editingService.value.id}`, editingService.value)
         } else {
-          await api.post('/construction-type-services', editingService.value)
-          showSuccess('Servicio agregado correctamente')
+          return await api.post('/construction-type-services', editingService.value)
         }
-        serviceDialog.value = false
-        await loadTypeServices()
-      } catch (error) {
-        console.error(error)
-        showError('Error guardando servicio')
       }
+
+      const successMessage = editingService.value.id ? 'Servicio actualizado correctamente' : 'Servicio agregado correctamente'
+      
+      await saveServiceItem(saveAction, successMessage, loadTypeServices)
     }
 
     const deleteService = async (service) => {
-      try {
-        await api.delete(`/construction-type-services/${service.id}`)
-        showSuccess('Servicio eliminado correctamente')
-        await loadTypeServices()
-      } catch (error) {
-        console.error(error)
-        showError('Error eliminando servicio')
+      const deleteAction = async () => {
+        return await api.delete(`/construction-type-services/${service.id}`)
       }
+
+      await deleteServiceItem(deleteAction, service.service_name, loadTypeServices)
     }
 
     onMounted(() => {
@@ -431,10 +466,12 @@ export default {
       selectType,
       openMaterialDialog,
       editMaterial,
+      closeMaterialDialog,
       saveMaterial,
       deleteMaterial,
       openServiceDialog,
       editService,
+      closeServiceDialog,
       saveService,
       deleteService
     }

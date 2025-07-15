@@ -1,10 +1,8 @@
-import { useQuasar } from 'quasar'
+import { Notify } from 'quasar'
 
 export function useNotifications() {
-  const $q = useQuasar()
-
   const showSuccess = (message) => {
-    $q.notify({
+    Notify.create({
       type: 'positive',
       message: message,
       position: 'top',
@@ -14,7 +12,7 @@ export function useNotifications() {
   }
 
   const showError = (message) => {
-    $q.notify({
+    Notify.create({
       type: 'negative',
       message: message,
       position: 'top',
@@ -24,7 +22,7 @@ export function useNotifications() {
   }
 
   const showInfo = (message) => {
-    $q.notify({
+    Notify.create({
       type: 'info',
       message: message,
       position: 'top',
@@ -34,7 +32,7 @@ export function useNotifications() {
   }
 
   const showWarning = (message) => {
-    $q.notify({
+    Notify.create({
       type: 'warning',
       message: message,
       position: 'top',
@@ -48,5 +46,23 @@ export function useNotifications() {
     showError,
     showInfo,
     showWarning
+  }
+}
+
+// Composable para manejo de inputs con uppercase
+export function useInputUtils() {
+  const toUpperCase = (value) => {
+    return value ? value.toString().toUpperCase() : ''
+  }
+
+  const handleInputBlur = (event) => {
+    if (event.target.value) {
+      event.target.value = event.target.value.toUpperCase()
+    }
+  }
+
+  return {
+    toUpperCase,
+    handleInputBlur
   }
 } 
