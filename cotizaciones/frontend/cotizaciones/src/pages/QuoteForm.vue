@@ -9,13 +9,14 @@
             <q-card>
               <q-card-section>
                 <div class="text-h6">Información General</div>
-                <GlobalSelect
+                <q-select
                   v-model="quote.client_id"
                   :options="clientOptions"
                   label="Cliente"
-                  icon="person"
-                  :rules="[val => !!val || 'Seleccione un cliente']"
-                  @update:modelValue="onClientChange"
+                  option-label="label"
+                  option-value="value"
+                  emit-value
+                  map-options
                 />
                 
                 <GlobalSelect
@@ -342,6 +343,9 @@
           services.value = servicesRes.data.data || servicesRes.data
           materials.value = materialsRes.data.data || materialsRes.data
           
+          // LOGS DE DEPURACIÓN
+          console.log('clients.value:', clients.value)
+          console.log('clientOptions en return:', clientOptions.value)
           showSuccess('Datos cargados correctamente')
         } catch (error) {
           console.error(error)
@@ -529,7 +533,12 @@
         calculateSubtotal,
         calculateTax,
         calculateTotal,
-        saveQuote
+        saveQuote,
+        safeToFixed,
+        showSuccess,
+        showError,
+        showInfo,
+        showWarning
       }
     }
    }

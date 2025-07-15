@@ -11,7 +11,7 @@
     map-options
     :multiple="multiple"
     :options="filteredOptions"
-    :model-value="selectedOption"
+    :model-value="props.modelValue"
     :use-input="!multiple"
     @filter="filterOptions"
     @update:model-value="val => emit('update:modelValue', val)"
@@ -75,26 +75,24 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-let selectedOption = ref(props.modelValue)
+// Eliminar selectedOption y su watcher
 let label = ref(props.label)
-let options = ref(props.options)
+let options = ref(props.options || [])
 let icon = ref(props.icon)
 let fieldColor = ref(props.fieldColor)
 // let error = ref(props.error)
 
-let filteredOptions = ref([...options.value])
+let filteredOptions = ref([...(options.value || [])])
 
-watch(() => props.modelValue, (value) => {
-  selectedOption.value = value
-})
+// Eliminar watcher de modelValue
 
 watch(() => props.label, (value) => {
   label.value = value
 })
 
 watch(() => props.options, (value) => {
-  options.value = value
-  filteredOptions.value = value
+  options.value = value || []
+  filteredOptions.value = value || []
 }, { deep: true })
 
 // const rules = computed(() => {
@@ -109,7 +107,7 @@ watch(() => props.options, (value) => {
 const filterOptions = (val, update) => {
   update(() => {
     const needle = val.toLowerCase()
-    filteredOptions.value = options.value.filter(v => v.label.toLowerCase().indexOf(needle) > -1)
+    filteredOptions.value = (options.value || []).filter(v => v.label.toLowerCase().indexOf(needle) > -1)
   })
 }
 </script> 

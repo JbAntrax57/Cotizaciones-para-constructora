@@ -66,83 +66,154 @@
         </q-card>
       </div>
 
-      <!-- Resultados -->
+      <!-- Resultados y Tabs -->
       <div class="col-12 col-md-6" v-if="results">
         <q-card>
           <q-card-section>
             <div class="text-h6">Resultados del Cálculo</div>
           </q-card-section>
 
+          <!-- Tabs de Materiales y Servicios -->
           <q-card-section>
-            <!-- Dimensiones calculadas -->
-            <div class="text-subtitle2 q-mb-md">Dimensiones:</div>
-            <div class="row q-col-gutter-sm q-mb-md">
-              <div class="col-6">
-                <q-chip color="blue" text-color="white">
-                  Área: {{ safeToFixed(results.dimensions.floor_area, 2) }} m²
-                </q-chip>
-              </div>
-              <div class="col-6">
-                <q-chip color="green" text-color="white">
-                  Perímetro: {{ safeToFixed(results.dimensions.perimeter, 2) }} m
-                </q-chip>
-              </div>
+            <q-tabs v-model="activeTab" class="text-grey" active-color="primary" indicator-color="primary" align="justify" narrow-indicator>
+              <q-tab name="materials" label="Materiales" />
+              <q-tab name="services" label="Servicios" />
+            </q-tabs>
+            <q-tab-panels v-model="activeTab" animated>
+              <q-tab-panel name="materials">
+                <div class="text-subtitle2 q-mb-sm">Materiales Necesarios:</div>
+                <q-list separator>
+                  <q-item v-for="material in editableResults.materials" :key="material.material_id">
+                    <q-item-section>
+                      <q-item-label>{{ material.name }}</q-item-label>
+                      <q-item-label caption>{{ material.application }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-input v-model.number="material.quantity" type="number" min="0" label="Cantidad" dense @update:model-value="recalculateTotals" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-input v-model.number="material.unit_cost" type="number" min="0" label="Precio Unitario" prefix="$" dense @update:model-value="recalculateTotals" />
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-item-label>Total:</q-item-label>
+                      <q-item-label caption="${{ formatCurrency(material.total_cost) }}"></q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-tab-panel>
+              <q-tab-panel name="services">
+                <div class="text-subtitle2 q-mb-sm">Servicios:</div>
+                <q-list separator>
+                  <q-item v-for="service in editableResults.services" :key="service.service_id">
+                    <q-item-section>
+                      <q-item-label>{{ service.name }}</q-item-label>
+                      <q-item-label caption>{{ service.description }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section>
+                      <q-input v-model.number="service.quantity" type="number" min="0" label="Cantidad" dense @update:model-value="recalculateTotals" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-input v-model.number="service.unit_cost" type="number" min="0" label="Precio Unitario" prefix="$" dense @update:model-value="recalculateTotals" />
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-item-label>Total:</q-item-label>
+                      <q-item-label caption="${{ formatCurrency(service.total_cost) }}"></q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-tab-panel>
+            </q-tab-panels>
+            <div class="row justify-end q-mt-md">
+              <q-btn label="Restaurar valores originales" color="secondary" flat @click="restoreOriginals" />
             </div>
+          </q-card-section>
 
-            <!-- Materiales -->
-            <div class="text-subtitle2 q-mb-sm">Materiales Necesarios:</div>
-            <q-list separator>
-              <q-item v-for="material in results.materials" :key="material.material_id">
-                <q-item-section>
-                  <q-item-label>{{ material.name }}</q-item-label>
-                  <q-item-label caption>{{ material.application }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-item-label>{{ material.quantity }} {{ material.unit }}</q-item-label>
-                  <q-item-label caption>${{ safeToFixed(material.total_cost, 2) }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
+          <!-- Botón para generar cotización -->
+          <q-card-section>
+            <q-btn
+              label="Generar cotización"
+              color="positive"
+              class="full-width q-mt-md"
+              @click="showQuoteModal = true"
+            />
+          </q-card-section>
 
-            <!-- Servicios -->
-            <div class="text-subtitle2 q-mb-sm q-mt-md">Servicios:</div>
-            <q-list separator>
-              <q-item v-for="service in results.services" :key="service.service_id">
-                <q-item-section>
-                  <q-item-label>{{ service.name }}</q-item-label>
-                  <q-item-label caption>{{ service.description }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-item-label>{{ safeToFixed(service.quantity, 2) }} {{ service.unit }}</q-item-label>
-                  <q-item-label caption>${{ safeToFixed(service.total_cost, 2) }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
+          <!-- Modal para seleccionar tipo de cotización -->
+          <q-dialog v-model="showQuoteModal">
+            <q-card style="min-width: 350px">
+              <q-card-section>
+                <div class="text-h6">¿Qué deseas presentar en la cotización?</div>
+              </q-card-section>
+              <q-card-section>
+                <q-select
+                  v-model="selectedQuoteType"
+                  :options="quoteTypeOptions"
+                  label="Tipo de cotización"
+                  emit-value
+                  map-options
+                />
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn flat label="Cancelar" color="negative" v-close-popup />
+                <q-btn flat label="Generar" color="primary" @click="generateQuote" />
+              </q-card-actions>
+            </q-card>
+          </q-dialog>
 
-            <!-- Totales -->
+          <!-- Cotización generada -->
+          <q-card-section v-if="quoteGenerated">
+            <div class="text-h6">Cotización Generada</div>
+            <div v-if="selectedQuoteType === 'all' || selectedQuoteType === 'materials'">
+              <div class="text-subtitle2 q-mb-sm">Materiales:</div>
+              <q-list separator>
+                <q-item v-for="material in editableResults.materials" :key="material.material_id">
+                  <q-item-section>
+                    <q-item-label>{{ material.name }}</q-item-label>
+                    <q-item-label caption>{{ material.application }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label>{{ material.quantity }} {{ material.unit }}</q-item-label>
+                    <q-item-label v-if="selectedQuoteType !== 'materials_list'" caption="${{ formatCurrency(material.total_cost) }}"></q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+            <div v-if="selectedQuoteType === 'all' || selectedQuoteType === 'services'">
+              <div class="text-subtitle2 q-mb-sm q-mt-md">Servicios:</div>
+              <q-list separator>
+                <q-item v-for="service in editableResults.services" :key="service.service_id">
+                  <q-item-section>
+                    <q-item-label>{{ service.name }}</q-item-label>
+                    <q-item-label caption>{{ service.description }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label>{{ safeToFixed(service.quantity, 2) }} {{ service.unit }}</q-item-label>
+                    <q-item-label caption="${{ formatCurrency(service.total_cost) }}"></q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
             <q-separator class="q-my-md" />
-            <div class="row justify-between q-py-sm">
+            <div v-if="selectedQuoteType === 'all' || selectedQuoteType === 'materials'" class="row justify-between q-py-sm">
               <div>Subtotal Materiales:</div>
-              <div class="text-weight-bold">${{ safeToFixed(results.totals.materials_subtotal, 2) }}</div>
+              <div class="text-weight-bold">{{ formatCurrency(editableResults.totals.materials_subtotal) }}</div>
             </div>
-            <div class="row justify-between q-py-sm">
+            <div v-if="selectedQuoteType === 'all' || selectedQuoteType === 'services'" class="row justify-between q-py-sm">
               <div>Subtotal Servicios:</div>
-              <div class="text-weight-bold">${{ safeToFixed(results.totals.services_subtotal, 2) }}</div>
+              <div class="text-weight-bold">{{ formatCurrency(editableResults.totals.services_subtotal) }}</div>
             </div>
             <q-separator class="q-my-sm" />
             <div class="row justify-between q-py-sm text-h6">
               <div>Total Estimado:</div>
-              <div class="text-weight-bold text-primary">${{ safeToFixed(results.totals.total, 2) }}</div>
+              <div class="text-weight-bold text-primary">
+                {{
+                  selectedQuoteType === 'all' ? formatCurrency(editableResults.totals.total) :
+                  selectedQuoteType === 'materials' ? formatCurrency(editableResults.totals.materials_subtotal) :
+                  selectedQuoteType === 'materials_list' ? '' :
+                  formatCurrency(editableResults.totals.services_subtotal)
+                }}
+              </div>
             </div>
-
-            <!-- Botón para crear cotización -->
-            <q-btn
-              label="Crear Cotización"
-              color="positive"
-              class="full-width q-mt-md"
-              @click="createQuote"
-              :loading="creatingQuote"
-            />
           </q-card-section>
         </q-card>
       </div>
@@ -151,7 +222,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from 'boot/axios'
 import { useNotifications } from 'src/composables/useNotifications'
@@ -161,7 +232,7 @@ import { useNumberFormatter } from 'src/composables/useNumberFormatter'
 const router = useRouter()
 const { showSuccess, showError, showInfo, showWarning } = useNotifications()
 const { showLoader, hideLoader, withLoader } = useGlobalLoader()
-const { safeToFixed } = useNumberFormatter()
+const { safeToFixed, formatCurrency } = useNumberFormatter()
 
 const form = ref({
   construction_type: '',
@@ -172,11 +243,23 @@ const form = ref({
 
 const constructionTypes = ref([])
 const results = ref(null)
+const editableResults = ref(null)
 const loadingTypes = ref(false)
 const calculating = ref(false)
 const creatingQuote = ref(false)
 
-// Opción computada para GlobalSelect
+const activeTab = ref('materials')
+const showQuoteModal = ref(false)
+const selectedQuoteType = ref('all')
+const quoteGenerated = ref(false)
+
+const quoteTypeOptions = [
+  { label: 'Todo junto (materiales y mano de obra)', value: 'all' },
+  { label: 'Solo materiales (con precio)', value: 'materials' },
+  { label: 'Solo mano de obra', value: 'services' },
+  { label: 'Solo materiales (sin precio)', value: 'materials_list' }
+]
+
 const constructionTypeOptions = computed(() => {
   return constructionTypes.value.map(type => ({
     label: type.name,
@@ -184,11 +267,46 @@ const constructionTypeOptions = computed(() => {
   }))
 })
 
+// Sincronizar editableResults con results cada vez que results cambia
+watch(results, (val) => {
+  if (val) {
+    editableResults.value = JSON.parse(JSON.stringify(val))
+  }
+}, { immediate: true })
+
+function recalculateTotals() {
+  if (!editableResults.value) return
+  // Materiales
+  let materialsSubtotal = 0
+  editableResults.value.materials.forEach(mat => {
+    mat.total_cost = Number(mat.quantity) * Number(mat.unit_cost)
+    materialsSubtotal += mat.total_cost
+  })
+  // Servicios
+  let servicesSubtotal = 0
+  editableResults.value.services.forEach(serv => {
+    serv.total_cost = Number(serv.quantity) * Number(serv.unit_cost)
+    servicesSubtotal += serv.total_cost
+  })
+  // Totales
+  editableResults.value.totals = {
+    materials_subtotal: materialsSubtotal,
+    services_subtotal: servicesSubtotal,
+    total: materialsSubtotal + servicesSubtotal
+  }
+}
+
+function restoreOriginals() {
+  if (results.value) {
+    editableResults.value = JSON.parse(JSON.stringify(results.value))
+    recalculateTotals()
+  }
+}
+
 const loadConstructionTypes = async () => {
   loadingTypes.value = true
   try {
     const response = await api.get('/construction-types')
-    // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
     constructionTypes.value = response.data.data || response.data
     showSuccess('Tipos de construcción cargados correctamente')
   } catch (error) {
@@ -204,9 +322,9 @@ const calculateConstruction = async () => {
   showLoader('Calculando construcción...')
   try {
     const response = await api.post('/calculate-construction', form.value)
-    // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
     results.value = response.data.data || response.data
     showSuccess('Cálculo completado exitosamente')
+    quoteGenerated.value = false
   } catch (error) {
     console.error('Error en el cálculo:', error)
     showError('Error en el cálculo')
@@ -216,16 +334,9 @@ const calculateConstruction = async () => {
   }
 }
 
-const createQuote = () => {
-  creatingQuote.value = true
-  showLoader('Creando cotización...')
-  
-  // Simular creación de cotización
-  setTimeout(() => {
-    showInfo('Función de crear cotización próximamente')
-    creatingQuote.value = false
-    hideLoader()
-  }, 1000)
+const generateQuote = () => {
+  quoteGenerated.value = true
+  showQuoteModal.value = false
 }
 
 onMounted(() => {
