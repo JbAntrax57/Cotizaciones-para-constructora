@@ -42,6 +42,16 @@ const routes = [
         path: 'quotes/:id/edit',
         name: 'quote-edit',
         component: () => import('pages/QuoteForm.vue')
+      },
+      {
+        path: 'calculator',
+        name: 'calculator',
+        component: () => import('pages/AutoCalculator.vue')
+      },
+      {
+        path: 'construction-type-config',
+        name: 'construction-type-config',
+        component: () => import('pages/ConstructionTypeConfig.vue')
       }
     ]
   }

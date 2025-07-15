@@ -3,13 +3,23 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Project;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
 {
+    use ApiResponse;
+
    public function index()
    {
-       return Project::with('client')->get();
+       $projects = Project::with('client')->get();
+       return $this->successResponse($projects, 'Proyectos obtenidos exitosamente');
+   }
+
+   public function getByClient($clientId)
+   {
+       $projects = Project::where('client_id', $clientId)->get();
+       return $this->successResponse($projects, 'Proyectos del cliente obtenidos exitosamente');
    }
 
    public function store(Request $request)
@@ -24,12 +34,14 @@ class ProjectController extends Controller
            'status' => 'required|in:planning,in_progress,completed'
        ]);
 
-       return Project::create($validated);
+       $project = Project::create($validated);
+       return $this->createdResponse($project, 'Proyecto creado exitosamente');
    }
 
    public function show(Project $project)
    {
-       return $project->load('client');
+       $project->load('client');
+       return $this->successResponse($project, 'Proyecto obtenido exitosamente');
    }
 
    public function update(Request $request, Project $project)
@@ -45,12 +57,12 @@ class ProjectController extends Controller
        ]);
 
        $project->update($validated);
-       return $project;
+       return $this->updatedResponse($project, 'Proyecto actualizado exitosamente');
    }
 
    public function destroy(Project $project)
    {
        $project->delete();
-       return response()->noContent();
+       return $this->deletedResponse('Proyecto eliminado exitosamente');
    }
 }

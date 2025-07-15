@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 
 class ClientController extends Controller
 {
+    use ApiResponse;
+
     public function index()
     {
-        return Client::all();
+        $clients = Client::all();
+        return $this->successResponse($clients, 'Clientes obtenidos exitosamente');
     }
 
     public function store(Request $request)
@@ -23,12 +27,13 @@ class ClientController extends Controller
             'email' => 'required|email'
         ]);
 
-        return Client::create($validated);
+        $client = Client::create($validated);
+        return $this->createdResponse($client, 'Cliente creado exitosamente');
     }
 
     public function show(Client $client)
     {
-        return $client;
+        return $this->successResponse($client, 'Cliente obtenido exitosamente');
     }
 
     public function update(Request $request, Client $client)
@@ -42,12 +47,12 @@ class ClientController extends Controller
         ]);
 
         $client->update($validated);
-        return $client;
+        return $this->updatedResponse($client, 'Cliente actualizado exitosamente');
     }
 
     public function destroy(Client $client)
     {
         $client->delete();
-        return response()->noContent();
+        return $this->deletedResponse('Cliente eliminado exitosamente');
     }
 }

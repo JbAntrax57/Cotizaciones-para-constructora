@@ -4,6 +4,17 @@
       <q-toolbar>
         <q-btn flat dense round icon="menu" @click="toggleLeftDrawer" />
         <q-toolbar-title>Sistema de Cotizaciones</q-toolbar-title>
+        
+        <!-- Botón para alternar modo oscuro -->
+        <q-btn
+          flat
+          round
+          dense
+          :icon="Dark.isActive ? 'light_mode' : 'dark_mode'"
+          @click="toggleDark"
+          :color="Dark.isActive ? 'yellow' : 'grey-8'"
+          class="q-ml-sm"
+        />
       </q-toolbar>
     </q-header>
 
@@ -38,6 +49,18 @@
           <q-item-section avatar><q-icon name="description" /></q-item-section>
           <q-item-section>Cotizaciones</q-item-section>
         </q-item>
+
+        <q-separator />
+
+        <q-item to="/calculator">
+          <q-item-section avatar><q-icon name="calculate" /></q-item-section>
+          <q-item-section>Calculadora Automática</q-item-section>
+        </q-item>
+
+        <q-item to="/construction-type-config">
+          <q-item-section avatar><q-icon name="settings" /></q-item-section>
+          <q-item-section>Configuración de Tipos</q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 
@@ -47,18 +70,17 @@
   </q-layout>
 </template>
 
-<script>
+<script setup>
 import { ref } from 'vue'
+import { Dark } from 'quasar'
 
-export default {
-  setup () {
-    const leftDrawerOpen = ref(false)
-    return {
-      leftDrawerOpen,
-      toggleLeftDrawer () {
-        leftDrawerOpen.value = !leftDrawerOpen.value
-      }
-    }
-  }
+const leftDrawerOpen = ref(false)
+
+const toggleLeftDrawer = () => {
+  leftDrawerOpen.value = !leftDrawerOpen.value
+}
+
+const toggleDark = () => {
+  Dark.toggle()
 }
 </script>

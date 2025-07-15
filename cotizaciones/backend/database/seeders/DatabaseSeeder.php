@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,11 +11,59 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Crear roles primero
+        $this->call([
+            RoleSeeder::class,
+        ]);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Crear usuarios
+        $this->call([
+            UserSeeder::class,
+        ]);
+
+        // Crear tipos de construcción
+        $this->call([
+            ConstructionTypeSeeder::class,
+        ]);
+
+        // Crear materiales
+        $this->call([
+            MaterialSeeder::class,
+        ]);
+
+        // Crear rendimientos de materiales
+        $this->call([
+            MaterialYieldSeeder::class,
+        ]);
+
+        // Crear tarifas de mano de obra
+        $this->call([
+            LaborRateSeeder::class,
+        ]);
+
+        // Crear clientes
+        $this->call([
+            ClientSeeder::class,
+        ]);
+
+        // Crear proyectos
+        $this->call([
+            ProjectSeeder::class,
+        ]);
+
+        // Crear servicios
+        $this->call([
+            ServiceSeeder::class,
+        ]);
+
+        // Crear materiales por tipo de construcción
+        $this->call([
+            ConstructionTypeMaterialSeeder::class,
+        ]);
+
+        // Crear servicios por tipo de construcción
+        $this->call([
+            ConstructionTypeServiceSeeder::class,
         ]);
     }
 }

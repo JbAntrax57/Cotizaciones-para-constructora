@@ -3,13 +3,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Material;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 
 class MaterialController extends Controller
 {
+    use ApiResponse;
+
     public function index()
     {
-        return Material::all();
+        $materials = Material::all();
+        return $this->successResponse($materials, 'Materiales obtenidos exitosamente');
     }
 
     public function store(Request $request)
@@ -17,16 +21,18 @@ class MaterialController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'supplier' => 'required|string|max:255',
-            'unit' => 'required|string',
-            'unit_cost' => 'required|numeric|min:0'
+            'unit' => 'required|string|max:50',
+            'unit_cost' => 'required|numeric|min:0',
+            'description' => 'required|string'
         ]);
 
-        return Material::create($validated);
+        $material = Material::create($validated);
+        return $this->createdResponse($material, 'Material creado exitosamente');
     }
 
     public function show(Material $material)
     {
-        return $material;
+        return $this->successResponse($material, 'Material obtenido exitosamente');
     }
 
     public function update(Request $request, Material $material)
@@ -34,17 +40,18 @@ class MaterialController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'supplier' => 'required|string|max:255',
-            'unit' => 'required|string',
-            'unit_cost' => 'required|numeric|min:0'
+            'unit' => 'required|string|max:50',
+            'unit_cost' => 'required|numeric|min:0',
+            'description' => 'required|string'
         ]);
 
         $material->update($validated);
-        return $material;
+        return $this->updatedResponse($material, 'Material actualizado exitosamente');
     }
 
     public function destroy(Material $material)
     {
         $material->delete();
-        return response()->noContent();
+        return $this->deletedResponse('Material eliminado exitosamente');
     }
 }

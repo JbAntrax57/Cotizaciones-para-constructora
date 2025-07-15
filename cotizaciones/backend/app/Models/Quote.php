@@ -1,9 +1,14 @@
 <?php
+
 namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Quote extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'client_id',
         'project_id',
@@ -15,6 +20,22 @@ class Quote extends Model
         'status'
     ];
 
+    protected $casts = [
+        'subtotal' => 'decimal:2',
+        'tax' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'total' => 'decimal:2'
+    ];
+
+    protected $appends = [
+        'formatted_created_at'
+    ];
+
+    public function getFormattedCreatedAtAttribute()
+    {
+        return $this->created_at ? $this->created_at->format('Y-m-d') : null;
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class);
@@ -23,6 +44,11 @@ class Quote extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function services()

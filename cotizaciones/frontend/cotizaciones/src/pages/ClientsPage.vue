@@ -2,25 +2,22 @@
     <q-page padding>
       <div class="row items-center justify-between q-mb-md">
         <h5 class="q-my-none">Clientes</h5>
-        <q-btn color="primary" icon="add" label="Nuevo Cliente" @click="showDialog = true" />
+        <q-btn color="primary" icon="add" label="Nuevo Cliente" @click="openNewClientDialog" />
       </div>
    
-      <q-table
+      <DataTable
         :rows="clients"
         :columns="columns"
-        row-key="id"
         :loading="loading"
       >
-        <template v-slot:body-cell-actions="props">
-          <q-td :props="props">
-            <q-btn flat round color="primary" icon="edit" @click="editClient(props.row)" />
-            <q-btn flat round color="negative" icon="delete" @click="confirmDelete(props.row)" />
-          </q-td>
+        <template #actions="{ row }">
+          <q-btn flat round color="primary" icon="edit" @click="editClient(row)" />
+          <q-btn flat round color="negative" icon="delete" @click="confirmDelete(row)" />
         </template>
-      </q-table>
+      </DataTable>
    
       <!-- Dialog para crear/editar -->
-      <q-dialog v-model="showDialog" persistent>
+      <q-dialog v-model="showDialog" persistent @hide="closeDialog">
         <q-card style="min-width: 350px">
           <q-card-section>
             <div class="text-h6">{{ editedClient.id ? 'Editar' : 'Nuevo' }} Cliente</div>
@@ -42,26 +39,52 @@
           </q-card-section>
         </q-card>
       </q-dialog>
+
+      <!-- Loader para acciones -->
+      <ActionLoader 
+        :loading="actionLoading" 
+        :message="actionMessage" 
+      />
     </q-page>
    </template>
    
    <script>
    import { ref } from 'vue'
    import { api } from 'src/boot/axios'
+   import DataTable from 'src/components/DataTable.vue'
+   import ActionLoader from 'src/components/ActionLoader.vue'
+   import { useNotifications } from 'src/composables/useNotifications'
+   import { useModal } from 'src/composables/useModal'
    
    export default {
     name: 'ClientsPage',
+    components: {
+      DataTable,
+      ActionLoader
+    },
     setup () {
       const clients = ref([])
       const loading = ref(false)
-      const showDialog = ref(false)
-      const editedClient = ref({
+
+      const defaultClientData = {
         business_name: '',
         rfc: '',
         address: '',
         phone: '',
         email: ''
-      })
+      }
+
+      const { showSuccess, showError } = useNotifications()
+      const { 
+        showDialog, 
+        editedItem: editedClient, 
+        actionLoading, 
+        actionMessage,
+        openNewDialog,
+        openEditDialog,
+        executeAction,
+        closeDialog
+      } = useModal(defaultClientData)
    
       const columns = [
         { name: 'business_name', label: 'Razón Social', field: 'business_name', sortable: true },
@@ -70,44 +93,56 @@
         { name: 'phone', label: 'Teléfono', field: 'phone', sortable: true },
         { name: 'actions', label: 'Acciones', field: 'actions' }
       ]
+
+      const openNewClientDialog = () => {
+        openNewDialog()
+      }
    
       const loadClients = async () => {
         loading.value = true
         try {
           const response = await api.get('/clients')
-          clients.value = response.data
+          // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
+          clients.value = response.data.data || response.data
         } catch (error) {
           console.error(error)
+          showError('Error al cargar los clientes')
         } finally {
           loading.value = false
         }
       }
    
       const saveClient = async () => {
-        try {
+        const result = await executeAction(async () => {
           if (editedClient.value.id) {
-            await api.put(`/clients/${editedClient.value.id}`, editedClient.value)
+            return await api.put(`/clients/${editedClient.value.id}`, editedClient.value)
           } else {
-            await api.post('/clients', editedClient.value)
+            return await api.post('/clients', editedClient.value)
           }
-          showDialog.value = false
+        })
+        
+        if (result.success) {
+          showSuccess(result.message)
           loadClients()
-        } catch (error) {
-          console.error(error)
+        } else {
+          showError(result.message)
         }
       }
    
       const editClient = (client) => {
-        editedClient.value = { ...client }
-        showDialog.value = true
+        openEditDialog(client)
       }
    
       const confirmDelete = async (client) => {
-        try {
-          await api.delete(`/clients/${client.id}`)
+        const result = await executeAction(async () => {
+          return await api.delete(`/clients/${client.id}`)
+        })
+        
+        if (result.success) {
+          showSuccess(result.message)
           loadClients()
-        } catch (error) {
-          console.error(error)
+        } else {
+          showError(result.message)
         }
       }
    
@@ -117,11 +152,14 @@
         clients,
         columns,
         loading,
+        actionLoading,
+        actionMessage,
         showDialog,
         editedClient,
         saveClient,
         editClient,
-        confirmDelete
+        confirmDelete,
+        openNewClientDialog
       }
     }
    }

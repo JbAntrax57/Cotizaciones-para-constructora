@@ -9,13 +9,23 @@
             <q-card>
               <q-card-section>
                 <div class="text-h6">Información General</div>
-                <q-select v-model="quote.client_id" :options="clients" 
-                  option-label="business_name" option-value="id" 
-                  label="Cliente" :rules="[val => !!val || 'Seleccione un cliente']" />
+                <GlobalSelect
+                  v-model="quote.client_id"
+                  :options="clientOptions"
+                  label="Cliente"
+                  icon="person"
+                  :rules="[val => !!val || 'Seleccione un cliente']"
+                  @update:modelValue="onClientChange"
+                />
                 
-                <q-select v-model="quote.project_id" :options="projects"
-                  option-label="name" option-value="id"
-                  label="Proyecto" :rules="[val => !!val || 'Seleccione un proyecto']" />
+                <GlobalSelect
+                  v-model="quote.project_id"
+                  :options="projectOptions"
+                  label="Proyecto"
+                  icon="work"
+                  :rules="[val => !!val || 'Seleccione un proyecto']"
+                  :disable="!quote.client_id"
+                />
               </q-card-section>
             </q-card>
           </div>
@@ -25,12 +35,31 @@
             <q-card>
               <q-card-section>
                 <div class="text-h6">Servicios</div>
-                <q-btn label="Agregar Servicio" color="primary" flat @click="addService" />
+                <q-btn 
+                  label="Agregar Servicio" 
+                  color="primary" 
+                  flat 
+                  @click="addService"
+                  :loading="loadingServices"
+                />
                 
-                <q-table :rows="quote.services" :columns="serviceColumns" row-key="id">
+                <q-table 
+                  :rows="quote.services" 
+                  :columns="serviceColumns" 
+                  row-key="id"
+                  :loading="loadingServices"
+                  :pagination="{ rowsPerPage: 0 }"
+                >
                   <template v-slot:body-cell-actions="props">
                     <q-td :props="props">
-                      <q-btn flat round color="negative" icon="delete" @click="removeService(props.rowIndex)" />
+                      <q-btn 
+                        flat 
+                        round 
+                        color="negative" 
+                        icon="delete" 
+                        @click="removeService(props.rowIndex)"
+                        :loading="loadingServices"
+                      />
                     </q-td>
                   </template>
                 </q-table>
@@ -43,12 +72,31 @@
             <q-card>
               <q-card-section>
                 <div class="text-h6">Materiales</div>
-                <q-btn label="Agregar Material" color="primary" flat @click="addMaterial" />
+                <q-btn 
+                  label="Agregar Material" 
+                  color="primary" 
+                  flat 
+                  @click="addMaterial"
+                  :loading="loadingMaterials"
+                />
                 
-                <q-table :rows="quote.materials" :columns="materialColumns" row-key="id">
+                <q-table 
+                  :rows="quote.materials" 
+                  :columns="materialColumns" 
+                  row-key="id"
+                  :loading="loadingMaterials"
+                  :pagination="{ rowsPerPage: 0 }"
+                >
                   <template v-slot:body-cell-actions="props">
                     <q-td :props="props">
-                      <q-btn flat round color="negative" icon="delete" @click="removeMaterial(props.rowIndex)" />
+                      <q-btn 
+                        flat 
+                        round 
+                        color="negative" 
+                        icon="delete" 
+                        @click="removeMaterial(props.rowIndex)"
+                        :loading="loadingMaterials"
+                      />
                     </q-td>
                   </template>
                 </q-table>
@@ -63,16 +111,16 @@
                 <div class="text-h6">Resumen</div>
                 <div class="row justify-between q-py-sm">
                   <div>Subtotal:</div>
-                  <div>${{ calculateSubtotal().toFixed(2) }}</div>
+                  <div>${{ safeToFixed(calculateSubtotal(), 2) }}</div>
                 </div>
                 <div class="row justify-between q-py-sm">
                   <div>IVA (16%):</div>
-                  <div>${{ calculateTax().toFixed(2) }}</div>
+                  <div>${{ safeToFixed(calculateTax(), 2) }}</div>
                 </div>
                 <q-separator />
                 <div class="row justify-between q-py-sm text-h6">
                   <div>Total:</div>
-                  <div>${{ calculateTotal().toFixed(2) }}</div>
+                  <div>${{ safeToFixed(calculateTotal(), 2) }}</div>
                 </div>
               </q-card-section>
             </q-card>
@@ -80,8 +128,20 @@
         </div>
    
         <div class="row justify-end q-mt-md">
-          <q-btn label="Cancelar" color="negative" flat :to="'/quotes'" />
-          <q-btn label="Guardar" type="submit" color="primary" class="q-ml-sm" />
+          <q-btn 
+            label="Cancelar" 
+            color="negative" 
+            flat 
+            :to="'/quotes'"
+            :disable="saving"
+          />
+          <q-btn 
+            label="Guardar" 
+            type="submit" 
+            color="primary" 
+            class="q-ml-sm"
+            :loading="saving"
+          />
         </div>
       </q-form>
    
@@ -93,15 +153,36 @@
           </q-card-section>
    
           <q-card-section>
-            <q-select v-model="newService.service_id" :options="services"
-              option-label="name" option-value="id" label="Servicio" />
-            <q-input v-model.number="newService.quantity" type="number" label="Cantidad" />
-            <q-input v-model.number="newService.unit_price" type="number" label="Precio Unitario" />
+            <GlobalSelect
+              v-model="newService.service_id"
+              :options="serviceOptions"
+              label="Servicio"
+              icon="build"
+              :rules="[val => !!val || 'Seleccione un servicio']"
+            />
+            <q-input 
+              v-model.number="newService.quantity" 
+              type="number" 
+              label="Cantidad"
+              :rules="[val => val > 0 || 'Cantidad debe ser mayor a 0']"
+            />
+            <q-input 
+              v-model.number="newService.unit_price" 
+              type="number" 
+              label="Precio Unitario"
+              :rules="[val => val >= 0 || 'Precio debe ser mayor o igual a 0']"
+            />
           </q-card-section>
    
           <q-card-actions align="right">
             <q-btn flat label="Cancelar" color="negative" v-close-popup />
-            <q-btn flat label="Agregar" color="primary" @click="confirmAddService" />
+            <q-btn 
+              flat 
+              label="Agregar" 
+              color="primary" 
+              @click="confirmAddService"
+              :loading="addingService"
+            />
           </q-card-actions>
         </q-card>
       </q-dialog>
@@ -114,15 +195,36 @@
           </q-card-section>
    
           <q-card-section>
-            <q-select v-model="newMaterial.material_id" :options="materials"
-              option-label="name" option-value="id" label="Material" />
-            <q-input v-model.number="newMaterial.quantity" type="number" label="Cantidad" />
-            <q-input v-model.number="newMaterial.unit_price" type="number" label="Precio Unitario" />
+            <GlobalSelect
+              v-model="newMaterial.material_id"
+              :options="materialOptions"
+              label="Material"
+              icon="construction"
+              :rules="[val => !!val || 'Seleccione un material']"
+            />
+            <q-input 
+              v-model.number="newMaterial.quantity" 
+              type="number" 
+              label="Cantidad"
+              :rules="[val => val > 0 || 'Cantidad debe ser mayor a 0']"
+            />
+            <q-input 
+              v-model.number="newMaterial.unit_price" 
+              type="number" 
+              label="Precio Unitario"
+              :rules="[val => val >= 0 || 'Precio debe ser mayor o igual a 0']"
+            />
           </q-card-section>
    
           <q-card-actions align="right">
             <q-btn flat label="Cancelar" color="negative" v-close-popup />
-            <q-btn flat label="Agregar" color="primary" @click="confirmAddMaterial" />
+            <q-btn 
+              flat 
+              label="Agregar" 
+              color="primary" 
+              @click="confirmAddMaterial"
+              :loading="addingMaterial"
+            />
           </q-card-actions>
         </q-card>
       </q-dialog>
@@ -133,6 +235,8 @@
    import { ref, onMounted, computed } from 'vue'
    import { useRouter, useRoute } from 'vue-router'
    import { api } from 'boot/axios'
+   import { useNotifications } from 'src/composables/useNotifications'
+   import { useNumberFormatter } from 'src/composables/useNumberFormatter'
    
    export default {
     name: 'QuoteForm',
@@ -140,9 +244,21 @@
       const router = useRouter()
       const route = useRoute()
       const isEdit = computed(() => route.params.id !== undefined)
+      const { showSuccess, showError, showInfo, showWarning } = useNotifications()
+      const { safeToFixed } = useNumberFormatter()
+   
+      // Estados de loading
+      const loadingClients = ref(false)
+      const loadingProjects = ref(false)
+      const loadingServices = ref(false)
+      const loadingMaterials = ref(false)
+      const saving = ref(false)
+      const addingService = ref(false)
+      const addingMaterial = ref(false)
    
       const clients = ref([])
-      const projects = ref([])
+      const allProjects = ref([]) // Todos los proyectos
+      const filteredProjects = ref([]) // Proyectos filtrados por cliente
       const services = ref([])
       const materials = ref([])
    
@@ -178,8 +294,41 @@
         { name: 'actions', label: 'Acciones' }
       ]
    
+      // Opciones computadas para GlobalSelect
+      const clientOptions = computed(() => {
+        return clients.value.map(client => ({
+          label: client.business_name,
+          value: client.id
+        }))
+      })
+
+      const projectOptions = computed(() => {
+        return filteredProjects.value.map(project => ({
+          label: project.name,
+          value: project.id
+        }))
+      })
+
+      const serviceOptions = computed(() => {
+        return services.value.map(service => ({
+          label: service.name,
+          value: service.id
+        }))
+      })
+
+      const materialOptions = computed(() => {
+        return materials.value.map(material => ({
+          label: material.name,
+          value: material.id
+        }))
+      })
+
       const loadData = async () => {
         try {
+          loadingClients.value = true
+          loadingServices.value = true
+          loadingMaterials.value = true
+          
           const [clientsRes, projectsRes, servicesRes, materialsRes] = await Promise.all([
             api.get('/clients'),
             api.get('/projects'),
@@ -187,13 +336,123 @@
             api.get('/materials')
           ])
    
-          clients.value = clientsRes.data
-          projects.value = projectsRes.data
-          services.value = servicesRes.data
-          materials.value = materialsRes.data
+          // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
+          clients.value = clientsRes.data.data || clientsRes.data
+          allProjects.value = projectsRes.data.data || projectsRes.data
+          services.value = servicesRes.data.data || servicesRes.data
+          materials.value = materialsRes.data.data || materialsRes.data
+          
+          showSuccess('Datos cargados correctamente')
         } catch (error) {
           console.error(error)
+          showError('Error cargando datos')
+        } finally {
+          loadingClients.value = false
+          loadingServices.value = false
+          loadingMaterials.value = false
         }
+      }
+   
+      const onClientChange = async (clientId) => {
+        console.log('Cliente seleccionado:', clientId)
+        
+        // Limpiar proyecto seleccionado cuando cambia el cliente
+        quote.value.project_id = null
+        
+        if (clientId) {
+          try {
+            loadingProjects.value = true
+            console.log('Cargando proyectos para cliente:', clientId)
+            // Cargar proyectos del cliente seleccionado
+            const response = await api.get(`/projects/by-client/${clientId}`)
+            console.log('Proyectos cargados:', response.data)
+            // Acceder a response.data.data porque el backend ahora devuelve { success, message, data }
+            filteredProjects.value = response.data.data || response.data
+            
+            showInfo(`${filteredProjects.value.length} proyecto(s) encontrado(s)`)
+          } catch (error) {
+            console.error('Error cargando proyectos del cliente:', error)
+            filteredProjects.value = []
+            showError('Error cargando proyectos del cliente')
+          } finally {
+            loadingProjects.value = false
+          }
+        } else {
+          console.log('No hay cliente seleccionado, limpiando proyectos')
+          filteredProjects.value = []
+        }
+      }
+   
+      const addService = () => {
+        newService.value = {}
+        serviceDialog.value = true
+      }
+   
+      const confirmAddService = () => {
+        if (!newService.value.service_id || !newService.value.quantity || !newService.value.unit_price) {
+          showWarning('Complete todos los campos del servicio')
+          return
+        }
+        
+        addingService.value = true
+        
+        try {
+          quote.value.services.push({
+            service_id: newService.value.service_id,
+            quantity: newService.value.quantity,
+            unit_price: newService.value.unit_price
+          })
+          
+          serviceDialog.value = false
+          newService.value = {}
+          
+          showSuccess('Servicio agregado correctamente')
+        } catch (error) {
+          showError('Error agregando servicio')
+        } finally {
+          addingService.value = false
+        }
+      }
+   
+      const removeService = (index) => {
+        quote.value.services.splice(index, 1)
+        showInfo('Servicio eliminado')
+      }
+   
+      const addMaterial = () => {
+        newMaterial.value = {}
+        materialDialog.value = true
+      }
+   
+      const confirmAddMaterial = () => {
+        if (!newMaterial.value.material_id || !newMaterial.value.quantity || !newMaterial.value.unit_price) {
+          showWarning('Complete todos los campos del material')
+          return
+        }
+        
+        addingMaterial.value = true
+        
+        try {
+          quote.value.materials.push({
+            material_id: newMaterial.value.material_id,
+            quantity: newMaterial.value.quantity,
+            unit_price: newMaterial.value.unit_price
+          })
+          
+          materialDialog.value = false
+          newMaterial.value = {}
+          
+          showSuccess('Material agregado correctamente')
+        } catch (error) {
+          showError('Error agregando material')
+        } finally {
+          addingMaterial.value = false
+        }
+      }
+   
+      const removeMaterial = (index) => {
+        quote.value.materials.splice(index, 1)
+        showInfo('Material eliminado')
       }
    
       const calculateSubtotal = () => {
@@ -206,6 +465,13 @@
       const calculateTotal = () => calculateSubtotal() + calculateTax()
    
       const saveQuote = async () => {
+        if (!quote.value.client_id || !quote.value.project_id) {
+          showWarning('Seleccione cliente y proyecto')
+          return
+        }
+        
+        saving.value = true
+        
         try {
           const data = {
             ...quote.value,
@@ -216,13 +482,18 @@
    
           if (isEdit.value) {
             await api.put(`/quotes/${route.params.id}`, data)
+            showSuccess('Cotización actualizada correctamente')
           } else {
             await api.post('/quotes', data)
+            showSuccess('Cotización creada correctamente')
           }
    
           router.push('/quotes')
         } catch (error) {
           console.error(error)
+          showError('Error guardando cotización')
+        } finally {
+          saving.value = false
         }
       }
    
@@ -231,7 +502,7 @@
       return {
         quote,
         clients,
-        projects,
+        filteredProjects,
         services,
         materials,
         serviceDialog,
@@ -241,6 +512,20 @@
         serviceColumns,
         materialColumns,
         isEdit,
+        loadingClients,
+        loadingProjects,
+        loadingServices,
+        loadingMaterials,
+        saving,
+        addingService,
+        addingMaterial,
+        onClientChange,
+        addService,
+        confirmAddService,
+        removeService,
+        addMaterial,
+        confirmAddMaterial,
+        removeMaterial,
         calculateSubtotal,
         calculateTax,
         calculateTotal,

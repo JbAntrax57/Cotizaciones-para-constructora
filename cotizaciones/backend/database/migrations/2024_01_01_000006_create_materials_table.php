@@ -11,7 +11,12 @@ return new class extends Migration {
             $table->string('supplier');
             $table->string('unit');
             $table->decimal('unit_cost', 10, 2);
+            $table->text('description');
             $table->timestamps();
         });
+    }
+
+    public function down() {
+        Schema::dropIfExists('materials');
     }
 };
